@@ -52,6 +52,7 @@ import org.osiam.resources.scim.UpdateGroup;
 import org.osiam.resources.scim.UpdateUser;
 import org.osiam.resources.scim.User;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.ClientBuilder;
 import java.net.URI;
 import java.util.List;
@@ -71,13 +72,7 @@ public class OsiamConnector {
     private static final PoolingHttpClientConnectionManager connectionManager =
             new PoolingHttpClientConnectionManager();
 
-    private static final javax.ws.rs.client.Client client = ClientBuilder.newClient(new ClientConfig()
-            .connectorProvider(new ApacheConnectorProvider())
-            .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
-            .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
-            .register(HttpAuthenticationFeature.basicBuilder().build())
-            .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
-            .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT));
+    private static javax.ws.rs.client.Client client;
 
     static {
         setMaxConnections(DEFAULT_MAX_CONNECTIONS);
@@ -94,6 +89,26 @@ public class OsiamConnector {
      * @param builder a valid {@link Builder} that holds all needed variables
      */
     private OsiamConnector(Builder builder) {
+        if (OsiamConnector.client == null) {
+            if (builder.sslContext != null) {
+                OsiamConnector.client =  ClientBuilder.newBuilder().sslContext(builder.sslContext).withConfig(new ClientConfig()
+                        .connectorProvider(new ApacheConnectorProvider())
+                        .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                        .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                        .register(HttpAuthenticationFeature.basicBuilder().build())
+                        .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                        .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+            } else {
+                OsiamConnector.client =  ClientBuilder.newBuilder().withConfig(new ClientConfig()
+                        .connectorProvider(new ApacheConnectorProvider())
+                        .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                        .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                        .register(HttpAuthenticationFeature.basicBuilder().build())
+                        .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                        .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+            }
+        }
+
         String authEndpoint;
         String resourceEndpoint;
         if (!Strings.isNullOrEmpty(builder.endpoint)) {
@@ -137,6 +152,28 @@ public class OsiamConnector {
     }
 
     static javax.ws.rs.client.Client getClient() {
+        if (OsiamConnector.client == null) {
+            OsiamConnector.client =  ClientBuilder.newBuilder().withConfig(new ClientConfig()
+                    .connectorProvider(new ApacheConnectorProvider())
+                    .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                    .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                    .register(HttpAuthenticationFeature.basicBuilder().build())
+                    .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                    .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+        }
+        return client;
+    }
+
+    static javax.ws.rs.client.Client getClient(SSLContext sslContext) {
+        if (OsiamConnector.client == null) {
+            OsiamConnector.client =  ClientBuilder.newBuilder().sslContext(sslContext).withConfig(new ClientConfig()
+                    .connectorProvider(new ApacheConnectorProvider())
+                    .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                    .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                    .register(HttpAuthenticationFeature.basicBuilder().build())
+                    .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                    .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+        }
         return client;
     }
 
@@ -737,6 +774,8 @@ public class OsiamConnector {
         private int readTimeout = DEFAULT_READ_TIMEOUT;
         private boolean legacySchemas = DEFAULT_LEGACY_SCHEMAS;
 
+        private SSLContext sslContext;
+
         /**
          * Use the given endpoint for communication with OSIAM.
          * <p>
@@ -895,6 +934,11 @@ public class OsiamConnector {
          */
         public Builder withLegacySchemas(boolean legacySchemas) {
             this.legacySchemas = legacySchemas;
+            return this;
+        }
+
+        public Builder withSSLContext(SSLContext sslContext) {
+            this.sslContext = sslContext;
             return this;
         }
 

@@ -43,6 +43,7 @@ import org.osiam.client.oauth.Client;
 import org.osiam.client.oauth.GrantType;
 import org.osiam.client.oauth.Scope;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -93,7 +94,11 @@ class AuthService {
         connectionTimeout = builder.connectTimeout;
         readTimeout = builder.readTimeout;
 
-        targetEndpoint = OsiamConnector.getClient().target(endpoint);
+        if (builder.sslContext != null) {
+            targetEndpoint = OsiamConnector.getClient(builder.sslContext).target(endpoint);
+        } else {
+            targetEndpoint = OsiamConnector.getClient().target(endpoint);
+        }
     }
 
     public AccessToken retrieveAccessToken(Scope... scopes) {
@@ -563,6 +568,8 @@ class AuthService {
         private int connectTimeout = OsiamConnector.DEFAULT_CONNECT_TIMEOUT;
         private int readTimeout = OsiamConnector.DEFAULT_READ_TIMEOUT;
 
+        private SSLContext sslContext;
+
         /**
          * Set up the Builder for the construction of an {@link AuthService} instance for the OAuth2 service at the
          * given endpoint
@@ -633,6 +640,11 @@ class AuthService {
          */
         public Builder withReadTimeout(int readTimeout) {
             this.readTimeout = readTimeout;
+            return this;
+        }
+
+        public Builder withSSLContext(SSLContext sslContext) {
+            this.sslContext = sslContext;
             return this;
         }
 

@@ -29,6 +29,7 @@ import org.osiam.resources.scim.Group;
 import org.osiam.resources.scim.SCIMSearchResult;
 import org.osiam.resources.scim.UpdateGroup;
 
+import javax.net.ssl.SSLContext;
 import java.util.List;
 
 /**
@@ -174,6 +175,11 @@ class OsiamGroupService extends AbstractOsiamService<Group> { // NOSONAR - Build
          */
         public Builder withLegacySchemas(boolean legacySchemas) {
             this.legacySchemas = legacySchemas;
+            return this;
+        }
+
+        public Builder withSSLContext(SSLContext sslContext) {
+            this.sslContext = sslContext;
             return this;
         }
 

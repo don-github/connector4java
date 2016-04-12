@@ -34,6 +34,7 @@ import org.osiam.resources.scim.SCIMSearchResult;
 import org.osiam.resources.scim.UpdateUser;
 import org.osiam.resources.scim.User;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -234,6 +235,11 @@ class OsiamUserService extends AbstractOsiamService<User> {
          */
         public Builder withLegacySchemas(boolean legacySchemas) {
             this.legacySchemas = legacySchemas;
+            return this;
+        }
+
+        public Builder withSSLContext(SSLContext sslContext) {
+            this.sslContext = sslContext;
             return this;
         }
 
