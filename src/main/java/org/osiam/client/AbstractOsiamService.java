@@ -40,6 +40,7 @@ import org.osiam.client.query.QueryBuilder;
 import org.osiam.resources.helper.UserDeserializer;
 import org.osiam.resources.scim.*;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -87,7 +88,11 @@ abstract class AbstractOsiamService<T extends Resource> {
                 .addDeserializer(User.class, userDeserializer);
         objectMapper.registerModule(userDeserializerModule);
 
-        targetEndpoint = OsiamConnector.getClient().target(builder.endpoint);
+        if (builder.sslContext != null) {
+            targetEndpoint = OsiamConnector.getClient(builder.sslContext).target(builder.endpoint);
+        } else {
+            targetEndpoint = OsiamConnector.getClient().target(builder.endpoint);
+        }
     }
 
     protected static void checkAccessTokenIsNotNull(AccessToken accessToken) {
@@ -400,6 +405,8 @@ abstract class AbstractOsiamService<T extends Resource> {
         protected int connectTimeout = OsiamConnector.DEFAULT_CONNECT_TIMEOUT;
         protected int readTimeout = OsiamConnector.DEFAULT_READ_TIMEOUT;
         protected boolean legacySchemas = OsiamConnector.DEFAULT_LEGACY_SCHEMAS;
+        protected SSLContext sslContext;
+
         private String endpoint;
         private Class<T> type;
         private String typeName;

@@ -25,6 +25,11 @@ package org.osiam.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.glassfish.jersey.apache.connector.ApacheClientProperties;
 import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
@@ -52,6 +57,7 @@ import org.osiam.resources.scim.UpdateGroup;
 import org.osiam.resources.scim.UpdateUser;
 import org.osiam.resources.scim.User;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.ClientBuilder;
 import java.net.URI;
 import java.util.List;
@@ -68,21 +74,10 @@ public class OsiamConnector {
     static final int DEFAULT_READ_TIMEOUT = 5000;
     static final boolean DEFAULT_LEGACY_SCHEMAS = false;
     private static final int DEFAULT_MAX_CONNECTIONS = 40;
-    private static final PoolingHttpClientConnectionManager connectionManager =
-            new PoolingHttpClientConnectionManager();
 
-    private static final javax.ws.rs.client.Client client = ClientBuilder.newClient(new ClientConfig()
-            .connectorProvider(new ApacheConnectorProvider())
-            .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
-            .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
-            .register(HttpAuthenticationFeature.basicBuilder().build())
-            .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
-            .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT));
-
-    static {
-        setMaxConnections(DEFAULT_MAX_CONNECTIONS);
-    }
-
+    private static javax.ws.rs.client.Client client;
+    private static PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+    
     private AuthService authService;
     private OsiamUserService userService;
     private OsiamGroupService groupService;
@@ -94,6 +89,35 @@ public class OsiamConnector {
      * @param builder a valid {@link Builder} that holds all needed variables
      */
     private OsiamConnector(Builder builder) {
+        if (OsiamConnector.client == null) {
+            if (builder.sslContext != null) {
+                Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                        .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                        .register("https", new SSLConnectionSocketFactory(builder.sslContext))
+                        .build();
+                OsiamConnector.connectionManager = new PoolingHttpClientConnectionManager(registry);
+                
+                OsiamConnector.client =  ClientBuilder.newBuilder().sslContext(builder.sslContext)
+                        .withConfig(new ClientConfig()
+                                .connectorProvider(new ApacheConnectorProvider())
+                                .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                                .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                                .register(HttpAuthenticationFeature.basicBuilder().build())
+                                .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                                .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+            } else {
+                OsiamConnector.client =  ClientBuilder.newBuilder().withConfig(new ClientConfig()
+                        .connectorProvider(new ApacheConnectorProvider())
+                        .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                        .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                        .register(HttpAuthenticationFeature.basicBuilder().build())
+                        .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                        .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+            }
+            connectionManager.setMaxTotal(DEFAULT_MAX_CONNECTIONS);
+            connectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS);
+        }
+
         String authEndpoint;
         String resourceEndpoint;
         if (!Strings.isNullOrEmpty(builder.endpoint)) {
@@ -117,6 +141,7 @@ public class OsiamConnector {
 
             }
             authService = authServiceBuilder
+                    .withSSLContext((builder.sslContext != null ? builder.sslContext : null))
                     .withConnectTimeout(builder.connectTimeout)
                     .withReadTimeout(builder.readTimeout)
                     .build();
@@ -124,11 +149,13 @@ public class OsiamConnector {
 
         if (!Strings.isNullOrEmpty(resourceEndpoint)) {
             userService = new OsiamUserService.Builder(resourceEndpoint)
+                    .withSSLContext((builder.sslContext != null ? builder.sslContext : null))
                     .withConnectTimeout(builder.connectTimeout)
                     .withReadTimeout(builder.readTimeout)
                     .withLegacySchemas(builder.legacySchemas)
                     .build();
             groupService = new OsiamGroupService.Builder(resourceEndpoint)
+                    .withSSLContext((builder.sslContext != null ? builder.sslContext : null))
                     .withConnectTimeout(builder.connectTimeout)
                     .withReadTimeout(builder.readTimeout)
                     .withLegacySchemas(builder.legacySchemas)
@@ -137,6 +164,38 @@ public class OsiamConnector {
     }
 
     static javax.ws.rs.client.Client getClient() {
+        if (OsiamConnector.client == null) {
+            OsiamConnector.client =  ClientBuilder.newBuilder().withConfig(new ClientConfig()
+                    .connectorProvider(new ApacheConnectorProvider())
+                    .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                    .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                    .register(HttpAuthenticationFeature.basicBuilder().build())
+                    .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                    .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+        }
+        return client;
+    }
+
+    static javax.ws.rs.client.Client getClient(SSLContext sslContext) {
+        if (OsiamConnector.client == null) {
+            Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                    .register("https", new SSLConnectionSocketFactory(sslContext))
+                    .build();
+            OsiamConnector.connectionManager = new PoolingHttpClientConnectionManager(registry);
+
+            OsiamConnector.client = ClientBuilder.newBuilder().sslContext(sslContext)
+                    .withConfig(new ClientConfig()
+                            .connectorProvider(new ApacheConnectorProvider())
+                            .property(ClientProperties.REQUEST_ENTITY_PROCESSING, RequestEntityProcessing.BUFFERED)
+                            .property(ApacheClientProperties.CONNECTION_MANAGER, connectionManager)
+                            .register(HttpAuthenticationFeature.basicBuilder().build())
+                            .property(ClientProperties.CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT)
+                            .property(ClientProperties.READ_TIMEOUT, DEFAULT_READ_TIMEOUT)).build();
+
+            connectionManager.setMaxTotal(DEFAULT_MAX_CONNECTIONS);
+            connectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS);
+        }
         return client;
     }
 
@@ -176,9 +235,6 @@ public class OsiamConnector {
      * <p>
      * <p/>The default value is 40. This property will be set application global, so you can only
      * define it for all {@link org.osiam.client.OsiamConnector} instances at the same time.
-     * <p>
-     * <p/>See {@link OsiamConnector#setMaxConnectionsPerRoute(int)} if you use OSIAM 2.x and
-     * installed auth-server and resource-server under different domains.
      *
      * @param maxConnections The maximum number of HTTP connections
      */
@@ -186,34 +242,7 @@ public class OsiamConnector {
         connectionManager.setMaxTotal(maxConnections);
         connectionManager.setDefaultMaxPerRoute(maxConnections);
     }
-
-    /**
-     * Sets the maximum number of connections that the underlying HTTP connection pool will
-     * allocate for single route.
-     * <p>
-     * <p/>This setting should only be used, if you use OSIAM 2.x and installed auth-server and
-     * resource-server under different domains. In this case you have 2 distinct routes to OSIAM.
-     * <p>
-     * <p/>A single route means a single FQDN, hostname or IP address. In the context of OSIAM 2.x
-     * this means the OSIAM server or the auth- or resource-server if they will be accessed under a
-     * different hostname. Remember to also set the number of maximum connections via
-     * {@link OsiamConnector#setMaxConnections(int)} based on the value set here, e.g. if you have 2
-     * separate endpoints, in sense of the hostname, for auth- and resource-server and set this
-     * value to {@code 20} you should set the maximum number of connections to {@code 40}. Remember
-     * to set maximum connections first and maximum connections per route afterwards, because
-     * {@link OsiamConnector#setMaxConnections(int)} also sets the maximum conenctions per route to
-     * the given value.
-     * <p>
-     * <p/>The default value is 40. This property will be set application global, so
-     * you can only define this timeout for all {@link org.osiam.client.OsiamConnector} instances at
-     * the same time.
-     *
-     * @param maxConnectionsPerRoute The maximum number of HTTP connections per route
-     */
-    public static void setMaxConnectionsPerRoute(int maxConnectionsPerRoute) {
-        connectionManager.setDefaultMaxPerRoute(maxConnectionsPerRoute);
-    }
-
+    
     private AuthService getAuthService() {
         if (authService == null) {
             throw new IllegalStateException("OSIAM's endpoint(s) are not properly configured.");
@@ -737,6 +766,8 @@ public class OsiamConnector {
         private int readTimeout = DEFAULT_READ_TIMEOUT;
         private boolean legacySchemas = DEFAULT_LEGACY_SCHEMAS;
 
+        private SSLContext sslContext;
+
         /**
          * Use the given endpoint for communication with OSIAM.
          * <p>
@@ -895,6 +926,11 @@ public class OsiamConnector {
          */
         public Builder withLegacySchemas(boolean legacySchemas) {
             this.legacySchemas = legacySchemas;
+            return this;
+        }
+
+        public Builder withSSLContext(SSLContext sslContext) {
+            this.sslContext = sslContext;
             return this;
         }
 
