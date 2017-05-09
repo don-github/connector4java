@@ -136,7 +136,7 @@ class OsiamGroupService extends AbstractOsiamService<Group> { // NOSONAR - Build
          * Set the connect timeout per connector, in milliseconds.
          * <p/>
          * <p>
-         * A value of zero (0) is equivalent to an interval of infinity. Default: 2500
+         * A value of zero (0) is equivalent to an interval of infinity. Default: 5000
          * </p>
          *
          * @param connectTimeout the connect timeout per connector, in milliseconds.
@@ -151,7 +151,7 @@ class OsiamGroupService extends AbstractOsiamService<Group> { // NOSONAR - Build
          * Set the read timeout per connector, in milliseconds.
          * <p/>
          * <p>
-         * A value of zero (0) is equivalent to an interval of infinity. Default: 5000
+         * A value of zero (0) is equivalent to an interval of infinity. Default: 10000
          * </p>
          *
          * @param readTimeout the read timeout per connector, in milliseconds.
