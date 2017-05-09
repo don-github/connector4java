@@ -70,8 +70,8 @@ import java.util.List;
 public class OsiamConnector {
 
     public static final ObjectMapper objectMapper = new ObjectMapper();
-    static final int DEFAULT_CONNECT_TIMEOUT = 2500;
-    static final int DEFAULT_READ_TIMEOUT = 5000;
+    static final int DEFAULT_CONNECT_TIMEOUT = 5000;
+    static final int DEFAULT_READ_TIMEOUT = 10000;
     static final boolean DEFAULT_LEGACY_SCHEMAS = false;
     private static final int DEFAULT_MAX_CONNECTIONS = 40;
 
@@ -203,7 +203,7 @@ public class OsiamConnector {
      * Set the connect timeout interval, in milliseconds.
      * <p>
      * <p>
-     * A value of zero (0) is equivalent to an interval of infinity. The default value is 2500. This property will be
+     * A value of zero (0) is equivalent to an interval of infinity. The default value is 5000. This property will be
      * set application global, so you can only define this timeout for all {@link org.osiam.client.OsiamConnector}
      * instances at the same time.
      * <p>
@@ -218,7 +218,7 @@ public class OsiamConnector {
      * Set the read timeout interval, in milliseconds.
      * <p>
      * <p>
-     * A value of zero (0) is equivalent to an interval of infinity. The default value is 5000. This property will be
+     * A value of zero (0) is equivalent to an interval of infinity. The default value is 10000. This property will be
      * set application global, so you can only define this timeout for all {@link org.osiam.client.OsiamConnector}
      * instances at the same time.
      * <p>
@@ -884,7 +884,7 @@ public class OsiamConnector {
          * Set the connect timeout per connector, in milliseconds.
          * <p>
          * <p>
-         * A value of zero (0) is equivalent to an interval of infinity. The default value is 2500. This connect timeout
+         * A value of zero (0) is equivalent to an interval of infinity. The default value is 5000. This connect timeout
          * is set per connector and overrides the global set
          * {@link org.osiam.client.OsiamConnector#setConnectTimeout(int)}
          * <p>
@@ -901,7 +901,7 @@ public class OsiamConnector {
          * Set the read timeout per connector, in milliseconds.
          * <p>
          * <p>
-         * A value of zero (0) is equivalent to an interval of infinity. The default value is 5000. This read timeout is
+         * A value of zero (0) is equivalent to an interval of infinity. The default value is 10000. This read timeout is
          * set per connector and overrides the global set {@link org.osiam.client.OsiamConnector#setConnectTimeout(int)}
          * <p>
          *
